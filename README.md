@@ -360,6 +360,6 @@ Bright Data 提供了多种替代方案：
 - [抓取浏览器](https://www.bright.cn/products/scraping-browser)：基于 Puppeteer、Selenium 或 Playwright 的全托管云浏览器，内置了自动验证码识别和代理轮换。  
 - [网络抓取 API](https://www.bright.cn/products/web-scraper)：预配置的 API，可直接获取超过百种热门站点的结构化数据。  
 - [无代码爬虫](https://www.bright.cn/products/web-scraper/no-code)：简单易用的云端数据采集服务，无需编写代码。  
-- [Datasets](https://www.bright.cn/products/datasets)：浏览并使用预构建的数据集，或自定义采集请求来获取你所需的特定数据。
+- [数据集](https://www.bright.cn/products/datasets)：浏览并使用预构建的数据集，或自定义采集请求来获取你所需的特定数据。
 
 立即创建一个免费的 Bright Data 帐号，体验我们的代理与爬虫解决方案吧！
