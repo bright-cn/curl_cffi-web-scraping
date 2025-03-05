@@ -1,6 +1,6 @@
 # 使用 curl_cffi 在 Python 中进行网络爬虫
 
-[![Promo](https://github.com/luminati-io/LinkedIn-Scraper/raw/main/Proxies%20and%20scrapers%20GitHub%20bonus%20banner.png)](https://www.bright.cn/)
+[![Promo](https://github.com/bright-cn/LinkedIn-Scraper/raw/main/Proxies%20and%20scrapers%20GitHub%20bonus%20banner.png)](https://www.bright.cn/)
 
 本指南将展示如何使用 curl_cffi 来增强 Python 爬虫脚本，通过模拟真实浏览器的 TLS 指纹来绕过一些基于指纹检测的反爬机制。
 
