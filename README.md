@@ -17,13 +17,13 @@
   - [会话管理](#会话管理)
   - [代理集成](#代理集成)
   - [异步 API](#异步-api)
-  - [WebSocket 连接](#websockets-connection)
+  - [WebSocket 连接](#websocket-连接)
 - [用于网页爬虫时，`curl_cffi` 与 Requests、AIOHTTP 和 HTTPX 的对比](#用于网页爬虫时curl_cffi-与-requestsaiohttp-和-httpx-的对比)
 - [用于网页爬虫的 `curl_cffi` 替代方案](#用于网页爬虫的-curl_cffi-替代方案)
 
 ## 什么是 `curl_cffi`？
 
-[`curl_cffi`](https://github.com/lexiforest/curl_cffi) 通过 CFFI 为 `curl-impersonate` 分支提供 Python 绑定，因此可以模拟浏览器的 TLS/JA3/HTTP2 指纹。这有助于绕过基于 [TLS 指纹识别](/blog/web-data/tls-fingerprinting)的反机器人拦截。
+[`curl_cffi`](https://github.com/lexiforest/curl_cffi) 通过 CFFI 为 `curl-impersonate` 分支提供 Python 绑定，因此可以模拟浏览器的 TLS/JA3/HTTP2 指纹。这有助于绕过基于 [TLS 指纹识别](https://www.bright.cn/blog/web-data/tls-fingerprinting)的反机器人拦截。
 
 它的一些功能包括：
 
@@ -249,7 +249,7 @@ response = requests.get("<YOUR_URL>", impersonate="<BROWSER_LABEL>")
 
 ### 会话管理
 
-`curl-cfii` 可以使用 [`Session`](https://requests.readthedocs.io/en/latest/user/advanced/#session-objects) 对象，在多个请求之间保留特定参数，例如 Cookie、标头或其他会话专用数据。
+`curl_cffi` 可以使用 [`Session`](https://requests.readthedocs.io/en/latest/user/advanced/#session-objects) 对象，在多个请求之间保留特定参数，例如 Cookie、标头或其他会话专用数据。
 
 以下是代码示例：
 
