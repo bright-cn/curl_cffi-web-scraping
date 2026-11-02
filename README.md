@@ -1,118 +1,118 @@
-# 使用 curl_cffi 在 Python 中进行网络爬虫
+# 在 Python 中使用 curl\_cffi 进行网页爬虫
 
-[![Promo](https://github.com/bright-cn/LinkedIn-Scraper/raw/main/Proxies%20and%20scrapers%20GitHub%20bonus%20banner.png)](https://www.bright.cn/)
+[![推广](https://github.com/bright-cn/LinkedIn-Scraper/raw/main/Proxies%20and%20scrapers%20GitHub%20bonus%20banner.png)](https://www.bright.cn/) 
 
-本指南将展示如何使用 curl_cffi 来增强 Python 爬虫脚本，通过模拟真实浏览器的 TLS 指纹来绕过一些基于指纹检测的反爬机制。
+本指南介绍如何使用 curl\_cffi 模拟真实浏览器的 TLS 指纹，从而增强 Python 网页爬虫脚本。
 
 - [什么是 `curl_cffi`？](#什么是-curl_cffi)
-- [它是如何工作的](#它是如何工作的)
-- [如何使用 `curl_cffi` 进行网络爬虫](#如何使用-curl_cffi-进行网络爬虫)
-  - [步骤 #1：项目设置](#步骤-1项目设置)
-  - [步骤 #2：安装 `curl_cffi`](#步骤-2安装-curl_cffi)
-  - [步骤 #3：连接目标页面](#步骤-3连接目标页面)
-  - [步骤 #4：添加数据爬取逻辑](#步骤-4添加数据爬取逻辑)
-  - [步骤 #5：整合所有内容](#步骤-5整合所有内容)
+- [工作原理](#工作原理)
+- [如何使用 `curl_cffi` 进行网页爬虫](#如何使用-curl_cffi-进行网页爬虫)
+  - [第 1 步：项目设置](#第-1-步项目设置)
+  - [第 2 步：安装 `curl_cffi`](#第-2-步安装-curl_cffi)
+  - [第 3 步：连接目标页面](#第-3-步连接目标页面)
+  - [第 4 步：添加数据抓取逻辑](#第-4-步添加数据抓取逻辑)
+  - [第 5 步：整合所有代码](#第-5-步整合所有代码)
 - [`curl_cffi`：高级用法](#curl_cffi高级用法)
-  - [浏览器模拟选择](#浏览器模拟选择)
+  - [选择要模拟的浏览器](#选择要模拟的浏览器)
   - [会话管理](#会话管理)
-  - [代理整合](#代理整合)
+  - [代理集成](#代理集成)
   - [异步 API](#异步-api)
-  - [WebSocket 连接](#websocket-连接)
-- [`curl_cffi` 与 Requests、AIOHTTP、HTTPX 在网络爬虫方面的比较](#curl_cffi-与-requestsaiohttphttpx-在网络爬虫方面的比较)
-- [`curl_cffi` 在网络爬虫方面的替代方案](#curl_cffi-在网络爬虫方面的替代方案)
+  - [WebSocket 连接](#websockets-connection)
+- [用于网页爬虫时，`curl_cffi` 与 Requests、AIOHTTP 和 HTTPX 的对比](#用于网页爬虫时curl_cffi-与-requestsaiohttp-和-httpx-的对比)
+- [用于网页爬虫的 `curl_cffi` 替代方案](#用于网页爬虫的-curl_cffi-替代方案)
 
 ## 什么是 `curl_cffi`？
 
-[`curl_cffi`](https://github.com/lexiforest/curl_cffi) 通过 CFFI 为 `curl-impersonate` 提供 Python 绑定，从而能够模拟浏览器的 TLS/JA3/HTTP2 指纹。这有助于绕过很多基于 [TLS 指纹](https://www.bright.cn/blog/web-data/tls-fingerprinting) 的反爬检测。
+[`curl_cffi`](https://github.com/lexiforest/curl_cffi) 通过 CFFI 为 `curl-impersonate` 分支提供 Python 绑定，因此可以模拟浏览器的 TLS/JA3/HTTP2 指纹。这有助于绕过基于 [TLS 指纹识别](/blog/web-data/tls-fingerprinting)的反机器人拦截。
 
-它的主要特性包括：
+它的一些功能包括：
 
-- 支持 JA3/TLS 和 HTTP2 指纹模拟，包括最新的浏览器和自定义指纹  
-- 性能比 `requests` 和 `httpx` 更快，与 `aiohttp` 相当  
-- API 类似于 `requests`  
-- 支持 `asyncio` 进行异步请求  
-- 支持为每一个请求进行代理轮换  
-- 支持 HTTP/2.0 和 `WebSocket`  
+- 支持模拟 JA3/TLS 和 HTTP2 指纹，包括新版浏览器指纹和自定义指纹
+- 比 `requests` 和 `httpx` 快得多，性能与 `aiohttp` 相当
+- 模拟 `requests` API
+- 支持使用 `asyncio` 执行异步 HTTP 请求
+- 支持在每次请求时轮换代理
+- 支持 HTTP/2.0 和 `WebSocket`
 
-## 它是如何工作的
+## 工作原理
 
-当你发送 HTTPS 请求时，会触发 [TLS 握手](https://www.cloudflare.com/learning/ssl/what-happens-in-a-tls-handshake/)，并产生唯一的 TLS 指纹。由于常规 HTTP 客户端与网页浏览器在握手细节上有差异，某些服务器能通过这些差异识别自动化流量并触发反爬。
+发送 HTTPS 请求时，会进行一次 [TLS 握手](https://www.cloudflare.com/learning/ssl/what-happens-in-a-tls-handshake/)，并生成唯一的 TLS 指纹。由于 HTTP 客户端与网页浏览器的运行方式不同，其指纹可能暴露自动化行为，进而触发反机器人防御机制。
 
-`curl-impersonate`（也是 `curl_cffi` 的基础）通过定制 cURL 来复制真实浏览器的 TLS 指纹：
+`curl_cffi` 所基于的 cURL Impersonate 对 cURL 进行定制，以复现真实的浏览器 TLS 指纹：
 
-- **TLS 库微调**：使用与浏览器相同的 TLS 连接库，而不是传统 cURL 依赖的库。  
-- **配置调整**：修改 TLS 扩展和 SSL 选项来模仿浏览器行为。  
-- **HTTP/2 定制化**：匹配浏览器在 HTTP/2 握手环节的设置。  
-- **非默认 cURL 选项**：使用 `--ciphers`、`--curves` 以及自定义请求头等提升模拟精度。  
+- **TLS 库调整**：使用浏览器采用的 TLS 连接库，而不是 cURL 使用的库。
+- **配置更改**：调整 TLS 扩展和 SSL 选项以模拟浏览器。
+- **HTTP/2 自定义**：匹配浏览器的握手设置。
+- **非默认 cURL 标志**：设置 `--ciphers`、`--curves` 和自定义标头，以提高准确性。
 
-这样发出的请求更像真正的浏览器流量，从而帮助绕过一些基于指纹侦测的反机器人机制。
+这会使请求看起来像是由真实浏览器发出的，从而帮助绕过机器人检测。
 
-## 如何使用 `curl_cffi` 进行网络爬虫
+## 如何使用 `curl_cffi` 进行网页爬虫
 
-下面我们以爬取沃尔玛 (Walmart) 上“Keyboard”搜索页面为例：
+让我们尝试抓取沃尔玛的“Keyboard”页面：  
 
-![沃尔玛“Keyboard”产品页面](https://github.com/bright-cn/curl_cffi-web-scraping/blob/main/Images/s_5A13EDF6E0EA32867C0C89DFE864B4C8FA81CE91CC8CE80729F465B232BE7073_1737992236291_image.png)
+![沃尔玛的“Keyboard”商品页面](https://github.com/bright-cn/curl_cffi-web-scraping/blob/main/Images/s_5A13EDF6E0EA32867C0C89DFE864B4C8FA81CE91CC8CE80729F465B232BE7073_1737992236291_image.png)
 
-如果你使用普通 HTTP 客户端访问该页面，就会收到下图所示的警告页面：
+如果你尝试使用任何 HTTP 客户端访问此页面，将收到以下错误页面：  
 
-![服务器返回的提示](https://github.com/bright-cn/curl_cffi-web-scraping/blob/main/Images/s_5A13EDF6E0EA32867C0C89DFE864B4C8FA81CE91CC8CE80729F465B232BE7073_1737992185267_image.png)
+![请注意服务器返回的响应](https://github.com/bright-cn/curl_cffi-web-scraping/blob/main/Images/s_5A13EDF6E0EA32867C0C89DFE864B4C8FA81CE91CC8CE80729F465B232BE7073_1737992185267_image.png)
 
-即使在请求头中设置了 “User-Agent” 模拟常见浏览器，也会因为 TLS 指纹不同而被知乎为机器人。这时，`curl_cffi` 就派上用场了。
+由于存在 TLS 指纹识别，即使将 `User-Agent` 设置为模拟真实浏览器，你仍会看到这个机器人检测页面。这正是 `curl_cffi` 可以发挥作用的地方。
 
-### 步骤 #1：项目设置
+### 第 1 步：项目设置
 
-确保你已安装 Python 3 及以上版本。然后新建一个用于 `curl_cffi` 爬虫的目录：
+确保你的计算机上已安装 Python 3 或更高版本。然后，为你的 `curl_cffi` 抓取项目创建一个目录：
 
 ```
 mkdir curl-cfii-scraper
 ```
 
-进入该目录并创建一个 [虚拟环境](https://docs.python.org/3/library/venv.html)：
+进入该目录并设置[虚拟环境](https://docs.python.org/3/library/venv.html)：
 
 ```
 cd curl-cfii-scraper
 python -m venv env
 ```
 
-在你喜欢的 Python IDE 中打开此项目文件夹，并在该文件夹中新建一个名为 `scraper.py` 的文件。
+使用你偏好的 Python IDE 打开项目文件夹，并在该文件夹中创建一个 `scraper.py` 文件。
 
-然后在终端中激活虚拟环境。若是 Linux 或 macOS：
+在 IDE 的终端中激活虚拟环境。在 Linux 或 macOS 上，使用：
 
 ```bash
 ./env/bin/activate
 ```
 
-如果你在 Windows 上：
+在 Windows 上，运行：
 
 ```bash
 env/Scripts/activate
 ```
 
-### 步骤 #2：安装 `curl_cffi`
+### 第 2 步：安装 `curl_cffi`
 
-在激活的虚拟环境中安装此 HTTP 客户端：
+在已激活的虚拟环境中安装该 HTTP 客户端：
 
 ```
 pip install curl-cffi
 ```
 
-### 步骤 #3：连接目标页面
+### 第 3 步：连接目标页面
 
-从 `curl_cffi` 中导入 `requests`：
+从 `curl_cffi` 导入 `requests`：
 
 ```python
 from curl_cffi import requests
 ```
 
-`requests` 提供了一个类似于 `requests` 库的高级 API。可以用它对页面发起 GET 请求：
+该对象提供类似 Requests 的高级 API。你可以使用它向目标页面发送 GET HTTP 请求：
 
 ```python
 response = requests.get("https://www.walmart.com/search?q=keyboard", impersonate="chrome")
 ```
 
-这里的 `impersonate="chrome"` 参数会让 `curl_cffi` 在发起请求时模仿最新版本 Chrome 浏览器的 TLS 指纹，从而使沃尔玛不再把你的自动化请求识别为机器人请求。
+`impersonate="chrome"` 参数会指示 `curl_cffi` 让 HTTP 请求看起来像是来自最新版本的 Chrome。这会让沃尔玛将自动请求视为普通浏览器请求，并返回标准网页。
 
-获取页面的 HTML 内容：
+你可以通过以下方式访问目标页面的 HTML 内容：
 
 ```python
 html = response.text
@@ -133,12 +133,12 @@ html = response.text
       <link rel="preconnect" href="https://beacon.walmart.com"/>
       <link rel="preconnect" href="https://b.wal.co"/>
       <title>Electronics - Walmart.com</title>
-      <!-- 省略部分内容 ... -->
+      <!-- omitted for brevity ... -->
 ```
 
-### 步骤 #4：添加数据爬取逻辑
+### 第 4 步：添加数据抓取逻辑
 
-要进行实际爬取，还需要一个 HTML 解析库，例如 [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)：
+要执行网页爬虫，你还需要使用 [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/) 之类的 HTML 解析库：
 
 ```bash
 pip install beautifulsoup4
@@ -150,73 +150,74 @@ pip install beautifulsoup4
 from bs4 import BeautifulSoup
 ```
 
-使用它来解析获取到的 HTML：
+使用它解析页面的 HTML：
 
 ```python
 soup = BeautifulSoup(response.text, "html.parser")
 ```
 
-[`"html.parser"`](https://docs.python.org/3/library/html.parser.html) 是 Python 标准库内置的 HTML 解析器，可让 BeautifulSoup 使用多种方法检索选择器并提取数据。
+[`"html.parser"`](https://docs.python.org/3/library/html.parser.html) 是 Python 标准库提供的默认 HTML 解析器，BeautifulSoup 使用它解析 HTML 字符串。它包含用于选择页面 HTML 元素并从中提取数据的方法。
 
-举个例子，下面的示例只获取页面的 `<title>` 标签。我们可以用 [CSS 选择器](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) 中的 `find()` 方法，然后访问它的 `text` 属性：
+下一个示例演示如何仅抓取页面标题。你可以使用 `find()` 方法，通过 [CSS 选择器](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors)选中标题，然后使用 `text` 属性访问其文本：
 
 ```python
 title_element = soup.find("title")
 title = title_element.text
 ```
 
-然后打印页面标题：
+打印页面标题：
 
 ```python
 print(title)
 ```
 
-### 步骤 #5：整合所有内容
+### 第 5 步：整合所有代码
 
-以下是最终的 `curl_cffi` 爬虫示例脚本：
+以下是最终的 `curl_cffi` 网页爬虫脚本：
 
 ```python
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 
-# 访问沃尔玛搜索“keyboard”页面
+# Send a GET request to the Walmart search page for "keyboard"
 response = requests.get("https://www.walmart.com/search?q=keyboard", impersonate="chrome")
 
-# 提取页面 HTML
+# Extract the HTML from the page
 html = response.text
 
-# 用 BeautifulSoup 解析页面内容
+# Parse the response content with BeautifulSoup
 soup = BeautifulSoup(response.text, "html.parser")
 
-# 使用 CSS 选择器获取<title>标签，并获取其文本内容
+# Find the title tag using a CSS selector and print it
 title_element = soup.find("title")
+# Extract data from it
 title = title_element.text
 
-# 这里可以加入更复杂的爬取逻辑...
+# More complex scraping logic...
 
-# 打印爬取结果
+# Print the scraped data
 print(title)
 ```
 
-运行：
+运行它：
 
 ```bash
 python3 scraper.py
 ```
 
-若在 Windows 上：
+在 Windows 上：
 
 ```bash
 python scraper.py
 ```
 
-结果为：
+结果如下：
 
 ```
 Electronics - Walmart.com
 ```
 
-如果省略 `impersonate="chrome"` 参数，则很可能会得到如下信息：
+如果移除 `impersonate="chrome"` 参数，则会得到：
 
 ```
 Robot or human?
@@ -224,142 +225,143 @@ Robot or human?
 
 ## `curl_cffi`：高级用法
 
-### 浏览器模拟选择
+### 选择要模拟的浏览器
 
-`curl_cffi` 支持使用多个浏览器的指纹进行模拟，只需在发起请求时通过 `impersonate` 参数指定：
+`curl_cffi` 支持模拟多种浏览器，你可以将其特有标签传递给 `impersonate` 参数：
 
 ```python
 response = requests.get("<YOUR_URL>", impersonate="<BROWSER_LABEL>")
 ```
 
-可用的模拟标签包括：
+你可以使用以下标签：
 
 - `chrome99`, `chrome100`, `chrome101`, `chrome104`, `chrome107`, `chrome110`, `chrome116`, `chrome119`, `chrome120`, `chrome123`, `chrome124`, `chrome131`
 - `chrome99_android`, `chrome131_android`
 - `edge99`, `edge101`
 - `safari15_3`, `safari15_5`, `safari17_0`, `safari17_2_ios`, `safari18_0`, `safari18_0_ios`
 
-一些使用建议：
+以下是一些建议：
 
-1. 想始终模拟最新浏览器版本，可直接使用 `chrome`、`safari` 或 `safari_ios`。  
-2. [由于 Firefox 目前不被支持](https://github.com/lexiforest/curl_cffi/issues/59)，它使用 NSS，而其他浏览器使用 boringssl，curl 无法同时链接两个 TLS 库。  
-3. 只有当浏览器指纹发生变化时，才会新增版本。如果某个版本未列出，你可用前一版本的指纹来模拟。  
-4. 对非浏览器场景，可使用 `ja3`、`akamai` 等自定义的 TLS 指纹。更多细节可查阅 [impersonation 文档](https://curl-cffi.readthedocs.io/en/latest/impersonate.html)。  
+1.  如需始终模拟最新版本的浏览器，只需使用 `chrome`、`safari` 和 `safari_ios`。
+2.  [Firefox 目前不可用](https://github.com/lexiforest/curl_cffi/issues/59)，因为它使用 NSS，而其他浏览器使用 boringssl，并且 curl 同一时间只能链接一个 TLS 库。
+3.  仅当浏览器指纹发生变化时，才会添加对应版本。如果某个版本被跳过，你仍可通过使用上一版本的标头来模拟它。
+4.  对于非浏览器目标，请使用 `ja3`、`akamai` 和类似参数指定你自己的自定义 TLS 指纹。详情请参阅[模拟功能文档](https://curl-cffi.readthedocs.io/en/latest/impersonate.html)。
 
 ### 会话管理
 
-`curl_cffi` 可以使用 [`Session`](https://requests.readthedocs.io/en/latest/user/advanced/#session-objects) 对象来跨多个请求维持会话参数，例如 cookies、headers 或其他会话数据。
+`curl-cfii` 可以使用 [`Session`](https://requests.readthedocs.io/en/latest/user/advanced/#session-objects) 对象，在多个请求之间保留特定参数，例如 Cookie、标头或其他会话专用数据。
 
-示例：
+以下是代码示例：
 
 ```python
-# 创建一个新的会话
+# Create a new session
 session = requests.Session()
 
-# 该端点在服务器端设置一个名为 userId 的 cookie
+# This endpoint sets a cookie on the server
 session.get("https://httpbin.io/cookies/set/userId/5", impersonate="chrome")
 
-# 打印会话中的 cookies，确认它们已被存储
+# Print the session's cookies to confirm they are being stored
 print(session.cookies)
 ```
 
-输出结果为：
+上述脚本的输出如下：
 
 ```
 <Cookies[<Cookie userId=5 for httpbin.org />]>
 ```
 
-这说明会话对象可以保持请求间的状态，例如服务器定义的 cookies。
+结果证明该会话能够在多个请求之间保持状态，例如存储服务器设置的 Cookie。
 
-### 代理整合
+### 代理集成
 
-与 `requests` 类似，`curl_cffi` 也可以通过 `proxies` 参数来设置代理：
+与 `requests` 库一样，`curl_cffi` 支持通过 `proxies` 对象集成代理：
 
 ```python
-# 定义你的代理地址
+# Define your proxy URL
 proxy = "YOUR_PROXY_URL"
 
-# 创建一个包含 HTTP 和 HTTPS 代理的字典
+# Create a dictionary of proxies for HTTP and HTTPS
 proxies = {"http": proxy, "https": proxy}
 
-# 使用代理和浏览器模拟来发起请求
+# Make a request using a proxy and browser impersonation
 response = requests.get("<YOUR_URL>", impersonate="chrome", proxies=proxies)
 ```
 
 ### 异步 API
 
-`curl_cffi` 通过 [`AsyncSession`](https://curl-cffi.readthedocs.io/en/latest/api.html#curl_cffi.requests.AsyncSession) 支持在 `asyncio` 中进行异步 HTTP 请求：
+`curl_cffi` 支持通过 [`AsyncSession`](https://curl-cffi.readthedocs.io/en/latest/api.html#curl_cffi.requests.AsyncSession) 对象，使用 `asyncio` 执行异步请求：
 
 ```python
 from curl_cffi.requests import AsyncSession
 import asyncio
 
-# 定义异步函数
+# Define an async function to execute the asynchronous code
 async def fetch_data():
     async with AsyncSession() as session:
-        # 执行异步 GET 请求
+        # Perform the asynchronous GET request
         response = await session.get("https://httpbin.org/anything", impersonate="chrome")
-        # 打印返回文本
+        # Print the response text
         print(response.text)
 
-# 运行异步函数
+# Run the async function
 asyncio.run(fetch_data())
 ```
 
-使用 `AsyncSession` 能更方便地并发执行多个请求。
+使用 `AsyncSession` 可以更轻松地高效处理多个异步请求。
 
 ### WebSocket 连接
 
-`curl_cffi` 同样支持使用 [`WebSocket`](https://curl-cffi.readthedocs.io/en/latest/api.html#curl_cffi.requests.Session.ws_connect) 类来建立 WebSocket 连接：
+`curl_cffi` 还通过 [`WebSocket`](https://curl-cffi.readthedocs.io/en/latest/api.html#curl_cffi.requests.Session.ws_connect) 类支持 `WebSocket`：
 
 ```python
 from curl_cffi.requests import WebSocket
 
-# 定义一个回调函数，用来处理收到的消息
+
+# Define a callback function to handle incoming messages
 def on_message(ws, message):
     print(message)
 
-# 使用回调函数初始化 WebSocket 连接
+# Initialize the WebSocket connection with the callback
 ws = WebSocket(on_message=on_message)
 
-# 连接一个示例 WebSocket 服务并监听消息
+# Connect to a sample WebSocket server and listen for messages
 ws.run_forever("wss://api.gemini.com/v1/marketdata/BTCUSD")
 ```
 
-这在需要实时数据的场景下十分有用，比如那些通过 `WebSocket` 传输动态数据的网站或 API。
+这对于从使用 `WebSocket` 动态填充数据的网站或 API 抓取实时数据尤其有用。
 
-如果不需要渲染页面，而只是获取动态数据，可以直接抓取 `WebSocket` 数据来提高效率。
+你无需抓取渲染后的页面，而是可以直接以 `WebSocket` 通道为目标，高效获取数据。
 
-> **注意**：  
-> 你还可以使用 [`AsyncWebSocket`](https://curl-cffi.readthedocs.io/en/latest/api.html#curl_cffi.requests.AsyncSession.ws_connect) 在异步场景下进行 WebSocket 通信。
+> **注意**：\
+> 借助 [`AsyncWebSocket`](https://curl-cffi.readthedocs.io/en/latest/api.html#curl_cffi.requests.AsyncSession.ws_connect) 类，你可以异步使用 `WebSocket`。
 
-## `curl_cffi` 与 Requests、AIOHTTP、HTTPX 在网络爬虫方面的比较
+## 用于网页爬虫时，curl\_cffi 与 Requests、AIOHTTP 和 HTTPX 的对比
 
-下表对比了 `curl_cffi` 和其他常见 Python HTTP 客户端在网络爬虫中的主要特性：
+下表对用于网页爬虫的 `curl_cffi` 与其他热门 Python HTTP 客户端进行了比较：
 
-| **特性**                 | **curl_cffi** | **Requests** | **AIOHTTP** | **HTTPX** |
-|--------------------------|---------------|--------------|------------|----------|
-| **同步 API**            | ✔️            | ✔️           | ❌          | ✔️        |
-| **异步 API**            | ✔️            | ❌           | ✔️          | ✔️        |
-| **支持 `WebSocket`**    | ✔️            | ❌           | ✔️          | ❌        |
-| **连接池**              | ✔️            | ✔️           | ✔️          | ✔️        |
-| **支持 HTTP/2**         | ✔️            | ❌           | ❌          | ✔️        |
-| **自定义 `User-Agent`** | ✔️            | ✔️           | ✔️          | ✔️        |
-| **TLS 指纹伪装**        | ✔️            | ❌           | ❌          | ❌        |
-| **速度**                | 高           | 中           | 高         | 中       |
-| **重试机制**            | ❌            | 需通过 `HTTPAdapter` 实现 | 需第三方库 | 通过自定义 `Transport` |
-| **代理整合**            | ✔️            | ✔️           | ✔️          | ✔️        |
-| **Cookie 处理**         | ✔️            | ✔️           | ✔️          | ✔️        |
+| **功能** | **curl\_cffi** | **Requests** | **AIOHTTP** | **HTTPX** |
+| --- | --- | --- | --- | --- |
+| **同步 API** | ✔️  | ✔️  | ❌   | ✔️  |
+| **异步 API** | ✔️  | ❌   | ✔️  | ✔️  |
+| **支持** `**WebSocket**` | ✔️  | ❌   | ✔️  | ❌   |
+| **连接池** | ✔️  | ✔️  | ✔️  | ✔️  |
+| **支持 HTTP/2** | ✔️  | ❌   | ❌   | ✔️  |
+| `**User-Agent**` **自定义** | ✔️  | ✔️  | ✔️  | ✔️  |
+| **TLS 指纹伪装** | ✔️  | ❌   | ❌   | ❌   |
+| **速度** | 高 | 中 | 高 | 中 |
+| **重试机制** | ❌   | 可通过 `HTTPAdapter` 使用 | 仅可通过第三方库使用 | 可通过内置 `Transport` 使用 |
+| **代理集成** | ✔️  | ✔️  | ✔️  | ✔️  |
+| **Cookie 处理** | ✔️  | ✔️  | ✔️  | ✔️  |
 
-## `curl_cffi` 在网络爬虫方面的替代方案
+## 用于网页爬虫的 `curl_cffi` 替代方案
 
-`curl_cffi` 需要你手动编写所有爬虫逻辑，对于一般的静态页面足够，但若遇到复杂动态页面和深度安全检测的场景，实施起来可能并不轻松。
+`curl_cffi` 需要采用手动方式进行网页爬虫，大部分代码都必须手动编写。虽然它对简单的静态网站很有效，但在处理动态网站或安全性极高的网站时可能面临挑战。
 
-Bright Data 提供了多种替代方案：
+Bright Data 提供多种 `curl_cffi` 替代方案：
 
-- [抓取浏览器](https://www.bright.cn/products/scraping-browser)：基于 Puppeteer、Selenium 或 Playwright 的全托管云浏览器，内置了自动验证码识别和代理轮换。  
-- [网络抓取 API](https://www.bright.cn/products/web-scraper)：预配置的 API，可直接获取超过百种热门站点的结构化数据。  
-- [无代码爬虫](https://www.bright.cn/products/web-scraper/no-code)：简单易用的云端数据采集服务，无需编写代码。  
-- [数据集](https://www.bright.cn/products/datasets)：浏览并使用预构建的数据集，或自定义采集请求来获取你所需的特定数据。
+- [抓取浏览器 API](https://www.bright.cn/products/scraping-browser)：完全托管的云浏览器实例，可与 Puppeteer、Selenium 和 Playwright 无缝集成。这些浏览器内置 CAPTCHA 破解功能，并支持自动轮换代理。
+- [网页爬虫工具 API](https://www.bright.cn/products/web-scraper)：预配置端点可提供来自 100 多个热门域名的最新结构化数据。
+- [无代码抓取工具](https://www.bright.cn/products/web-scraper/no-code)：易于使用的按需数据采集服务，无需编写代码。
+- [数据集](https://www.bright.cn/products/datasets)：浏览来自不同网站的预构建数据集，或根据你的具体需求定制数据采集。
 
-立即创建一个免费的 Bright Data 帐号，体验我们的代理与爬虫解决方案吧！
+立即创建免费的 Bright Data 账户，测试我们的代理和爬虫解决方案！
